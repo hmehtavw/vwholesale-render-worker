@@ -145,10 +145,21 @@ async function processGifJob(job) {
       item.is_festival ? 'festive gold jewel tones' : 'warm professional cream charcoal';
 
     // Get themes
-    const themes = await getThemes(topic);
-    if (!themes.length) throw new Error('Could not generate slide themes');
+    // Check if images already exist — skip generation if so
+    const existingSq = (item.platform_images?.gif_slides_square||'').split('|').filter(Boolean);
+    const existingSt = (item.platform_images?.gif_slides_story||'').split('|').filter(Boolean);
+    const existingLs = (item.platform_images?.gif_slides_landscape||'').split('|').filter(Boolean);
 
-    // Generate all 9 images
+    if (existingSq.length >= 3 && existingSt.length >= 3 && existingLs.length >= 3) {
+      console.log('[v6] images already exist, skipping to MP4');
+      slideImages.square = existingSq;
+      slideImages.story = existingSt;
+      slideImages.landscape = existingLs;
+      // Skip to MP4 generation
+    } else {
+      const themes = await getThemes(topic);
+      if (!themes.length) throw new Error('Could not generate slide themes');
+      // Generate all 9 images
     const sizes = [
       { key: 'square', size: '1024x1024', orient: 'Square 1:1' },
       { key: 'story', size: '1024x1536', orient: 'Vertical portrait 9:16' },
@@ -184,7 +195,8 @@ async function processGifJob(job) {
       }
     }
 
-    if (!slideImages.square.length) throw new Error('No images generated');
+      if (!slideImages.square.length) throw new Error('No images generated');
+    } // end else (new image generation)
 
     // Save image URLs to DB
     const pi = item.platform_images || {};
