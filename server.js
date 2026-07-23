@@ -15,6 +15,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'content-type, x-worker-secret');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   if (req.path === '/health' || req.path.startsWith('/status')) return next();
   if (req.headers['x-worker-secret'] !== WORKER_SECRET) return res.status(401).json({ error: 'Unauthorized' });
   next();
