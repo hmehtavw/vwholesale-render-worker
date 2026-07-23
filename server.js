@@ -144,29 +144,27 @@ async function processGifJob(job) {
       t.includes('paint') ? 'warm terracotta sage green' :
       item.is_festival ? 'festive gold jewel tones' : 'warm professional cream charcoal';
 
-    // Get themes
-    // Check if images already exist — skip generation if so
-    const existingSq = (item.platform_images?.gif_slides_square||'').split('|').filter(Boolean);
-    const existingSt = (item.platform_images?.gif_slides_story||'').split('|').filter(Boolean);
-    const existingLs = (item.platform_images?.gif_slides_landscape||'').split('|').filter(Boolean);
+    // Declare slideImages before the if/else so both branches can use it
+    const slideImages = { square: [], story: [], landscape: [] };
+    const pi0 = item.platform_images || {};
+    const existingSq = (pi0.gif_slides_square||'').split('|').filter(Boolean);
+    const existingSt = (pi0.gif_slides_story||'').split('|').filter(Boolean);
+    const existingLs = (pi0.gif_slides_landscape||'').split('|').filter(Boolean);
 
     if (existingSq.length >= 3 && existingSt.length >= 3 && existingLs.length >= 3) {
       console.log('[v6] images already exist, skipping to MP4');
       slideImages.square = existingSq;
       slideImages.story = existingSt;
       slideImages.landscape = existingLs;
-      // Skip to MP4 generation
     } else {
       const themes = await getThemes(topic);
       if (!themes.length) throw new Error('Could not generate slide themes');
-      // Generate all 9 images
-    const sizes = [
-      { key: 'square', size: '1024x1024', orient: 'Square 1:1' },
-      { key: 'story', size: '1024x1536', orient: 'Vertical portrait 9:16' },
-      { key: 'landscape', size: '1536x1024', orient: 'Wide landscape 16:9' },
-    ];
-    const slideImages = { square: [], story: [], landscape: [] };
-    let doneCount = 0;
+      const sizes = [
+        { key: 'square', size: '1024x1024', orient: 'Square 1:1' },
+        { key: 'story', size: '1024x1536', orient: 'Vertical portrait 9:16' },
+        { key: 'landscape', size: '1536x1024', orient: 'Wide landscape 16:9' },
+      ];
+      let doneCount = 0;
 
     for (let si = 0; si < themes.length; si++) {
       const theme = themes[si];
@@ -232,9 +230,9 @@ async function processGifJob(job) {
           imgPaths.push(p);
         }
 
-        // Reduce resolution for story/landscape to save memory
-        const encW = fmt === 'square' ? W : Math.round(W * 0.75);
-        const encH = fmt === 'square' ? H : Math.round(H * 0.75);
+        // Reduce resolution to save memory - square 720p, story/landscape 60%
+        const encW = fmt === 'square' ? 720 : Math.round(W * 0.6);
+        const encH = fmt === 'square' ? 720 : Math.round(H * 0.6);
         // Create individual clips then concat
         for (let i = 0; i < imgPaths.length; i++) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
