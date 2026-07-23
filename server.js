@@ -257,8 +257,8 @@ async function processGifJob(job) {
         const { data: fresh } = await sb().from('content_calendar').select('platform_images').eq('id', calendarId).single();
         const pi2 = fresh?.platform_images || {};
         if (fmt === 'square')    { pi2.instagram_feed_mp4 = mp4Url; pi2.threads_mp4 = mp4Url; pi2.mp4_music = mp4Url; }
-        if (fmt === 'story')     { pi2.instagram_story_mp4 = mp4Url; pi2.facebook_story_mp4 = mp4Url; }
-        if (fmt === 'landscape') { pi2.facebook_post_mp4 = mp4Url; pi2.youtube_mp4 = mp4Url; }
+        if (fmt === 'story')     { pi2.instagram_story_mp4 = mp4Url; pi2.facebook_story_mp4 = mp4Url; pi2.whatsapp_story_mp4 = mp4Url; }
+        if (fmt === 'landscape') { pi2.facebook_post_mp4 = mp4Url; pi2.youtube_mp4 = mp4Url; pi2.gbp_mp4 = mp4Url; }
         await sb().from('content_calendar').update({ platform_images: pi2, updated_at: new Date().toISOString() }).eq('id', calendarId);
         console.log('[v6] mp4 done', fmt, mp4Url.slice(-30));
 
