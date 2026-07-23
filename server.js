@@ -231,8 +231,8 @@ async function processGifJob(job) {
         }
 
         // Reduce resolution to save memory - square 720p, story/landscape 60%
-        const encW = fmt === 'square' ? 1080 : Math.round(W * 0.75);
-        const encH = fmt === 'square' ? 1080 : Math.round(H * 0.75);
+        const encW = Math.round(W * 0.85);
+        const encH = Math.round(H * 0.85);
         // Create individual clips then concat
         for (let i = 0; i < imgPaths.length; i++) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
