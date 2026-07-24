@@ -178,6 +178,9 @@ async function processGifJob(job) {
 
         try {
           const imgBuf = await genImage(prompt, sz.size);
+          // Cost tracking: gpt-image-2 medium quality
+          const costInr = sz.size === '1536x1024' || sz.size === '1024x1536' ? 11.90 : 10.20;
+          console.log('[cost] slide', si+1, sz.key, '₹'+costInr);
           const imgPath = path.join(tmp, 'gif_' + calendarId + '_s' + si + '_' + sz.key + '_' + ts + '.png');
           fs.writeFileSync(imgPath, imgBuf);
 
