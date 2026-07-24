@@ -244,16 +244,35 @@ async function processGifJob(job) {
           imgPaths.push(p);
         }
 
-        // Premium: images are native size — encode at 85% to save memory
+        // Premium: images native size, encode at 85% to save memory
         const encW = Math.round(W * 0.85);
         const encH = Math.round(H * 0.85);
         for (let i = 0; i < imgPaths.length; i++) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
-          await runFFmpeg([
-            '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
-            '-vf', 'scale=' + encW + ':' + encH + ':force_original_aspect_ratio=decrease,pad=' + encW + ':' + encH + ':(ow-iw)/2:(oh-ih)/2:color=#111827,setsar=1,fps=25,format=yuv420p',
-            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-pix_fmt', 'yuv420p', clip
-          ]);
+          let ffArgs;
+          if (fmt === 'square') {
+            // Square 1:1 — simple scale, minimal padding
+            ffArgs = [
+              '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
+              '-vf', 'scale=' + encW + ':' + encH + ':force_original_aspect_ratio=decrease,pad=' + encW + ':' + encH + ':(ow-iw)/2:(oh-ih)/2:color=#111827,setsar=1,fps=25,format=yuv420p',
+              '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-pix_fmt', 'yuv420p', clip
+            ];
+          } else {
+            // Story + Landscape: blurred background fill (ChatGPT recommended)
+            // Split: blurred enlarged BG + sharp contained FG overlay
+            const bf = [
+              '[0:v]split=2[background][foreground]',
+              '[background]scale=' + encW + ':' + encH + ':force_original_aspect_ratio=increase,crop=' + encW + ':' + encH + ',gblur=sigma=35,eq=brightness=-0.08:saturation=0.85[blurred]',
+              '[foreground]scale=' + encW + ':' + encH + ':force_original_aspect_ratio=decrease[poster]',
+              '[blurred][poster]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=25,format=yuv420p[video]'
+            ].join(';');
+            ffArgs = [
+              '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
+              '-filter_complex', bf, '-map', '[video]',
+              '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', clip
+            ];
+          }
+          await runFFmpeg(ffArgs);
           clips.push(clip);
         }
 
