@@ -244,7 +244,7 @@ async function processGifJob(job) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
           await runFFmpeg([
             '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
-            '-vf', `scale=${encW}:${encH}:force_original_aspect_ratio=decrease,pad=${encW}:${encH}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=25`,
+            '-vf', `scale=${encW}:${encH}:force_original_aspect_ratio=increase,crop=${encW}:${encH},setsar=1,fps=25`,
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '30', '-pix_fmt', 'yuv420p', clip
           ]);
           clips.push(clip);
