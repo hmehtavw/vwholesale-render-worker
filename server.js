@@ -172,7 +172,7 @@ async function processGifJob(job) {
 
         try {
           let imgBuf = await genImage(prompt, '1024x1024');
-          console.log('[cost] slide', si+1, '\u20b910.20');
+          console.log('[cost] slide', si+1, 'Rs 10.20');
           const imgPath = path.join(tmp, 'img_' + ts + '_' + si + '.png');
           fs.writeFileSync(imgPath, imgBuf);
           imgBuf = null;
@@ -299,3 +299,6 @@ app.post('/render', (req, res) => {
 });
 
 app.listen(PORT, () => console.log('[vw-render] v6 FULL listening on port', PORT));
+
+process.on('uncaughtException', (e) => console.error('[CRASH]', e.message));
+process.on('unhandledRejection', (e) => console.error('[REJECT]', e));
