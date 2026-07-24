@@ -162,22 +162,22 @@ async function processGifJob(job) {
       let doneCount = 0;
 
       // PREMIUM MODE: Generate 9 images (3 slides x 3 native formats)
-      // Each image purpose-built for its format — no resizing, no cropping
+      // Each format generated independently with safe margins — no cropping needed
       const formats = [
         {
           key: 'square',
           size: '1024x1024',
-          prompt_suffix: 'Square 1:1 format for Instagram Feed and Threads. Layout: V Wholesale logo top-left, tagline below, bold headline center-left, Indian home interior photo fills right side, category strip bottom, footer bar at very bottom. Balanced editorial composition.'
+          prompt_suffix: 'Instagram Feed square 1:1 (1080x1080). SAFE ZONE RULE: Keep ALL elements — logo, headline, text, phone number, footer — inside the central 88% of the canvas. Minimum 60px from every edge. No element may touch or cross the edge. LAYOUT: V Wholesale logo top-center in safe zone. Indian home interior lifestyle photo fills center. Bold headline below photo. Category strip. Footer with phone number well inside bottom margin. Generous whitespace around all content.'
         },
         {
           key: 'story',
           size: '1024x1536',
-          prompt_suffix: 'Vertical 9:16 portrait for Instagram Story and WhatsApp Status. Layout: V Wholesale logo small at top-center, full-bleed Indian home photo fills 50% from top, bold headline overlaid on gradient in middle, message text, category strip, footer at bottom. True vertical design — no horizontal padding or black areas.'
+          prompt_suffix: 'Instagram Story and WhatsApp Status vertical 9:16. CRITICAL SAFE ZONE: Left 90px = unsafe. Right 90px = unsafe. Top 140px = unsafe. Bottom 220px = unsafe. ALL content (V Wholesale logo, headline, phone number, footer, icons, category strip) must be COMPLETELY inside the safe center area. Instagram UI will cover edges. LAYOUT: Logo in safe top area. Full-bleed lifestyle photo in middle. Large centered headline in safe zone. Footer phone number well above the 220px bottom unsafe margin. Nothing touches edges.'
         },
         {
           key: 'landscape',
           size: '1536x1024',
-          prompt_suffix: 'Wide 16:9 landscape for Facebook, YouTube and GBP. Layout: Left 40% is text area — V Wholesale logo top-left, bold headline, message, footer. Right 60% is full Indian home interior lifestyle photo. Horizontal split design — no vertical padding or black areas.'
+          prompt_suffix: 'Facebook and YouTube wide 16:9 landscape. SAFE ZONE: 70px on all sides. ALL content must stay 70px+ from every edge. LAYOUT: Left 40% text column — V Wholesale logo, bold headline, message, footer all within safe margins (70px+ from left edge). Right 60% — Indian home interior lifestyle photo within safe margins. No text, logo or footer may cross the 70px safe margin on any side. Professional wide banner.'
         }
       ];
 
@@ -251,7 +251,7 @@ async function processGifJob(job) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
           await runFFmpeg([
             '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
-            '-vf', 'scale=' + encW + ':' + encH + ':force_original_aspect_ratio=increase,crop=' + encW + ':' + encH + ':(iw-' + encW + ')/2:(ih-' + encH + ')/2,setsar=1,fps=25,format=yuv420p',
+            '-vf', 'scale=' + encW + ':' + encH + ':force_original_aspect_ratio=decrease,pad=' + encW + ':' + encH + ':(ow-iw)/2:(oh-ih)/2:color=#111827,setsar=1,fps=25,format=yuv420p',
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-pix_fmt', 'yuv420p', clip
           ]);
           clips.push(clip);
