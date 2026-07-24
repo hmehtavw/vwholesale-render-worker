@@ -177,12 +177,13 @@ async function processGifJob(job) {
         });
 
         try {
-          const imgBuf = await genImage(prompt, sz.size);
+          let imgBuf = await genImage(prompt, sz.size);
           // Cost tracking: gpt-image-2 medium quality
           const costInr = sz.size === '1536x1024' || sz.size === '1024x1536' ? 11.90 : 10.20;
           console.log('[cost] slide', si+1, sz.key, '₹'+costInr);
           const imgPath = path.join(tmp, 'gif_' + calendarId + '_s' + si + '_' + sz.key + '_' + ts + '.png');
           fs.writeFileSync(imgPath, imgBuf);
+          imgBuf = null; // free memory immediately
 
           // Upload to Supabase
           const url = await uploadSB(imgPath, 'calendar/' + calendarId + '_gif_s' + (si + 1) + '_' + sz.key + '_' + ts + '.png');
@@ -190,6 +191,8 @@ async function processGifJob(job) {
           doneCount++;
           console.log('[v6] generated slide', si + 1, sz.key, url.slice(-30));
           fs.unlinkSync(imgPath);
+          // Pause to let GC run
+          await new Promise(r => setTimeout(r, 1000));
         } catch(e) {
           console.error('[v6] image gen failed', si + 1, sz.key, e.message);
         }
