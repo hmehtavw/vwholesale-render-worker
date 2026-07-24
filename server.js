@@ -151,55 +151,42 @@ async function processGifJob(job) {
     const existingSt = (pi0.gif_slides_story||'').split('|').filter(Boolean);
     const existingLs = (pi0.gif_slides_landscape||'').split('|').filter(Boolean);
 
-    if (existingSq.length >= 3 && existingSt.length >= 3 && existingLs.length >= 3) {
+    if (existingSq.length >= 3) {
       console.log('[v6] images already exist, skipping to MP4');
       slideImages.square = existingSq;
-      slideImages.story = existingSt;
-      slideImages.landscape = existingLs;
+      slideImages.story = existingSq;
+      slideImages.landscape = existingSq;
     } else {
       const themes = await getThemes(topic);
       if (!themes.length) throw new Error('Could not generate slide themes');
-      const sizes = [
-        { key: 'square', size: '1024x1024', orient: 'Square 1:1' },
-        { key: 'story', size: '1024x1536', orient: 'Vertical portrait 9:16' },
-        { key: 'landscape', size: '1536x1024', orient: 'Wide landscape 16:9' },
-      ];
       let doneCount = 0;
 
-    for (let si = 0; si < themes.length; si++) {
-      const theme = themes[si];
-      const cats = CATEGORY_SETS[si % CATEGORY_SETS.length];
-      for (const sz of sizes) {
-        const prompt = 'Premium V Wholesale home building materials marketing poster. Indian home lifestyle photo. Color: ' + scheme + '. Format: ' + sz.orient + '. Brand "V Wholesale" top-left. Tagline: Build Better. Pay Less. Headline: "' + theme.headline + '". Message: "' + theme.message + '". Visual: ' + theme.angle + '. Category strip: ' + cats + '. Footer: +91 8712697930 | vwholesale.in | Visit V Wholesale. No gibberish. No watermark.';
+      // Generate 3 SQUARE images only — cost ₹30.60 not ₹102
+      // Railway crops to story/landscape format
+      for (let si = 0; si < themes.length; si++) {
+        const theme = themes[si];
+        const cats = CATEGORY_SETS[si % CATEGORY_SETS.length];
+        const prompt = 'Premium V Wholesale marketing poster. Square 1:1 (1024x1024). Color: ' + scheme + '. Keep ALL text and logo in CENTER 80% safe zone. Brand "V Wholesale" top-center. Tagline: Build Better. Pay Less. Bold headline: "' + theme.headline + '". Indian home photo for: ' + theme.angle + '. Message: "' + theme.message + '". Category strip: ' + cats + '. Footer: +91 8712697930 | vwholesale.in | Visit V Wholesale. Center-safe. No watermark.';
 
-        await updateProgress(calendarId, 'generating_images', {
-          step: 'Slide ' + (si + 1) + '/3 — ' + sz.key, done: doneCount, total: 9
-        });
+        await updateProgress(calendarId, 'generating_images', { step: 'Slide ' + (si+1) + '/3', done: doneCount, total: 3 });
 
         try {
-          let imgBuf = await genImage(prompt, sz.size);
-          // Cost tracking: gpt-image-2 medium quality
-          const costInr = sz.size === '1536x1024' || sz.size === '1024x1536' ? 11.90 : 10.20;
-          console.log('[cost] slide', si+1, sz.key, '₹'+costInr);
-          const imgPath = path.join(tmp, 'gif_' + calendarId + '_s' + si + '_' + sz.key + '_' + ts + '.png');
+          let imgBuf = await genImage(prompt, '1024x1024');
+          console.log('[cost] slide', si+1, '\u20b910.20');
+          const imgPath = path.join(tmp, 'img_' + ts + '_' + si + '.png');
           fs.writeFileSync(imgPath, imgBuf);
-          imgBuf = null; // free memory immediately
-
-          // Upload to Supabase
-          const url = await uploadSB(imgPath, 'calendar/' + calendarId + '_gif_s' + (si + 1) + '_' + sz.key + '_' + ts + '.png');
-          slideImages[sz.key].push(url);
+          imgBuf = null;
+          const url = await uploadSB(imgPath, 'calendar/' + calendarId + '_gif_s' + (si+1) + '_' + ts + '.png');
+          slideImages.square.push(url);
+          slideImages.story.push(url);
+          slideImages.landscape.push(url);
           doneCount++;
-          console.log('[v6] generated slide', si + 1, sz.key, url.slice(-30));
+          console.log('[v6] slide', si+1, 'done', url.slice(-30));
           fs.unlinkSync(imgPath);
-          // Pause to let GC run
-          await new Promise(r => setTimeout(r, 1000));
-        } catch(e) {
-          console.error('[v6] image gen failed', si + 1, sz.key, e.message);
-        }
+          await new Promise(r => setTimeout(r, 500));
+        } catch(e) { console.error('[v6] slide', si+1, 'failed:', e.message); }
       }
-    }
-
-      if (!slideImages.square.length) throw new Error('No images generated');
+    if (!slideImages.square.length) throw new Error('No images generated');
     } // end else (new image generation)
 
     // Save image URLs to DB
