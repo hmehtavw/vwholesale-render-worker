@@ -244,18 +244,15 @@ async function processGifJob(job) {
           imgPaths.push(p);
         }
 
-        // Reduce resolution to save memory - square 720p, story/landscape 60%
+        // Premium: images are native size — encode at 85% to save memory
         const encW = Math.round(W * 0.85);
         const encH = Math.round(H * 0.85);
-        // Create individual clips then concat
         for (let i = 0; i < imgPaths.length; i++) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
-          // Images are pre-sized natively — just scale to target, setsar, fps
-          const vf = 'scale=' + encW + ':' + encH + ',setsar=1,fps=25';
           await runFFmpeg([
             '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
-            '-filter_complex', vf,
-            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-pix_fmt', 'yuv420p', clip
+            '-vf', 'scale=' + encW + ':' + encH + ':force_original_aspect_ratio=decrease,pad=' + encW + ':' + encH + ':(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=25',
+            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26', '-pix_fmt', 'yuv420p', clip
           ]);
           clips.push(clip);
         }
