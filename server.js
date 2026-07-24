@@ -151,40 +151,61 @@ async function processGifJob(job) {
     const existingSt = (pi0.gif_slides_story||'').split('|').filter(Boolean);
     const existingLs = (pi0.gif_slides_landscape||'').split('|').filter(Boolean);
 
-    if (existingSq.length >= 3) {
-      console.log('[v6] images already exist, skipping to MP4');
+    if (existingSq.length >= 3 && existingSt.length >= 3 && existingLs.length >= 3) {
+      console.log('[v6] all 9 images exist, skipping to MP4');
       slideImages.square = existingSq;
-      slideImages.story = existingSq;
-      slideImages.landscape = existingSq;
+      slideImages.story = existingSt;
+      slideImages.landscape = existingLs;
     } else {
       const themes = await getThemes(topic);
       if (!themes.length) throw new Error('Could not generate slide themes');
       let doneCount = 0;
 
-      // Generate 3 SQUARE images only — cost ₹30.60 not ₹102
-      // Railway crops to story/landscape format
+      // PREMIUM MODE: Generate 9 images (3 slides x 3 native formats)
+      // Each image purpose-built for its format — no resizing, no cropping
+      const formats = [
+        {
+          key: 'square',
+          size: '1024x1024',
+          prompt_suffix: 'Square 1:1 format for Instagram Feed and Threads. Layout: V Wholesale logo top-left, tagline below, bold headline center-left, Indian home interior photo fills right side, category strip bottom, footer bar at very bottom. Balanced editorial composition.'
+        },
+        {
+          key: 'story',
+          size: '1024x1536',
+          prompt_suffix: 'Vertical 9:16 portrait for Instagram Story and WhatsApp Status. Layout: V Wholesale logo small at top-center, full-bleed Indian home photo fills 50% from top, bold headline overlaid on gradient in middle, message text, category strip, footer at bottom. True vertical design — no horizontal padding or black areas.'
+        },
+        {
+          key: 'landscape',
+          size: '1536x1024',
+          prompt_suffix: 'Wide 16:9 landscape for Facebook, YouTube and GBP. Layout: Left 40% is text area — V Wholesale logo top-left, bold headline, message, footer. Right 60% is full Indian home interior lifestyle photo. Horizontal split design — no vertical padding or black areas.'
+        }
+      ];
+
       for (let si = 0; si < themes.length; si++) {
         const theme = themes[si];
         const cats = CATEGORY_SETS[si % CATEGORY_SETS.length];
-        const prompt = 'Premium V Wholesale marketing poster. Square 1:1 (1024x1024). Color: ' + scheme + '. Keep ALL text and logo in CENTER 80% safe zone. Brand "V Wholesale" top-center. Tagline: Build Better. Pay Less. Bold headline: "' + theme.headline + '". Indian home photo for: ' + theme.angle + '. Message: "' + theme.message + '". Category strip: ' + cats + '. Footer: +91 8712697930 | vwholesale.in | Visit V Wholesale. Center-safe. No watermark.';
 
-        await updateProgress(calendarId, 'generating_images', { step: 'Slide ' + (si+1) + '/3', done: doneCount, total: 3 });
+        for (const fmt of formats) {
+          await updateProgress(calendarId, 'generating_images', {
+            step: 'Slide ' + (si+1) + '/3 — ' + fmt.key, done: doneCount, total: 9
+          });
 
-        try {
-          let imgBuf = await genImage(prompt, '1024x1024');
-          console.log('[cost] slide', si+1, 'Rs 10.20');
-          const imgPath = path.join(tmp, 'img_' + ts + '_' + si + '.png');
-          fs.writeFileSync(imgPath, imgBuf);
-          imgBuf = null;
-          const url = await uploadSB(imgPath, 'calendar/' + calendarId + '_gif_s' + (si+1) + '_' + ts + '.png');
-          slideImages.square.push(url);
-          slideImages.story.push(url);
-          slideImages.landscape.push(url);
-          doneCount++;
-          console.log('[v6] slide', si+1, 'done', url.slice(-30));
-          fs.unlinkSync(imgPath);
-          await new Promise(r => setTimeout(r, 500));
-        } catch(e) { console.error('[v6] slide', si+1, 'failed:', e.message); }
+          const prompt = 'Premium V Wholesale home building materials marketing poster. Color: ' + scheme + '. Real Indian home interior lifestyle photography. ' + fmt.prompt_suffix + ' Brand: V Wholesale. Tagline: Build Better. Pay Less. Headline: "' + theme.headline + '". Visual: ' + theme.angle + '. Message: "' + theme.message + '". Category strip: ' + cats + '. Footer: +91 8712697930 | vwholesale.in | Visit V Wholesale. No black bars. No padding. No watermark. No gibberish.';
+
+          try {
+            let imgBuf = await genImage(prompt, fmt.size);
+            console.log('[cost] slide', si+1, fmt.key, 'Rs', fmt.size === '1024x1024' ? '10.20' : '11.90');
+            const imgPath = path.join(tmp, 'img_' + ts + '_s' + si + '_' + fmt.key + '.png');
+            fs.writeFileSync(imgPath, imgBuf);
+            imgBuf = null;
+            const url = await uploadSB(imgPath, 'calendar/' + calendarId + '_gif_s' + (si+1) + '_' + fmt.key + '_' + ts + '.png');
+            slideImages[fmt.key].push(url);
+            doneCount++;
+            console.log('[v6] slide', si+1, fmt.key, 'done', url.slice(-30));
+            fs.unlinkSync(imgPath);
+            await new Promise(r => setTimeout(r, 300));
+          } catch(e) { console.error('[v6] slide', si+1, fmt.key, 'failed:', e.message); }
+        }
       }
     if (!slideImages.square.length) throw new Error('No images generated');
     } // end else (new image generation)
@@ -229,8 +250,8 @@ async function processGifJob(job) {
         // Create individual clips then concat
         for (let i = 0; i < imgPaths.length; i++) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
-          // Blurred background fill: no black bars, no content cropping
-          const vf = '[0:v]scale=' + encW + ':' + encH + ':force_original_aspect_ratio=increase,crop=' + encW + ':' + encH + ',boxblur=20:5[bg];[0:v]scale=' + encW + ':' + encH + ':force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=25';
+          // Images are pre-sized natively — just scale to target, setsar, fps
+          const vf = 'scale=' + encW + ':' + encH + ',setsar=1,fps=25';
           await runFFmpeg([
             '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
             '-filter_complex', vf,
