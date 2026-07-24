@@ -229,10 +229,12 @@ async function processGifJob(job) {
         // Create individual clips then concat
         for (let i = 0; i < imgPaths.length; i++) {
           const clip = path.join(tmp, 'clip_' + ts + '_' + fmt + '_' + i + '.mp4');
+          // Blurred background fill: no black bars, no content cropping
+          const vf = '[0:v]scale=' + encW + ':' + encH + ':force_original_aspect_ratio=increase,crop=' + encW + ':' + encH + ',boxblur=20:5[bg];[0:v]scale=' + encW + ':' + encH + ':force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=25';
           await runFFmpeg([
             '-loop', '1', '-t', String(hold), '-i', imgPaths[i],
-            '-vf', `scale=${encW}:${encH}:force_original_aspect_ratio=increase,crop=${encW}:${encH},setsar=1,fps=25`,
-            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '30', '-pix_fmt', 'yuv420p', clip
+            '-filter_complex', vf,
+            '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-pix_fmt', 'yuv420p', clip
           ]);
           clips.push(clip);
         }
